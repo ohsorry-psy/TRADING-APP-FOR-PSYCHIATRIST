@@ -1,4 +1,3 @@
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -31,13 +30,21 @@ if close.empty:
 
 # ✅ RSI 계산
 try:
-    data['RSI'] = ta.momentum.RSIIndicator(close=close, window=14).rsi()
+    data['RSI'] = ta.momentum.RSIIndicator(close=close.squeeze(), window=14).rsi()
     if data['RSI'].isnull().all():
         st.error("❌ RSI 계산 결과가 모두 결측치입니다.")
         st.stop()
 except Exception as e:
     st.error(f"RSI 계산 중 오류 발생: {e}")
     st.stop()
+
+# ✅ 일목균형표 추가
+try:
+    ichimoku = ta.trend.IchimokuIndicator(high=data['High'], low=data['Low'], window1=9, window2=26, window3=52)
+    data['tenkan_sen'] = ichimoku.ichimoku_conversion_line()
+    data['kijun_sen'] = ichimoku.ichimoku_base_line()
+except Exception as e:
+    st.warning(f"일목균형표 계산 오류: {e}")
 
 # 🧠 다이버전스 탐지 함수
 def find_bullish_divergence(df):
@@ -65,19 +72,17 @@ def find_bearish_divergence(df):
 bullish_points = find_bullish_divergence(data)
 bearish_points = find_bearish_divergence(data)
 
-# 📈 Plotly 차트 시각화 (단일 x축)
-fig = go.Figure()
-
-# 가격
-fig.add_trace(go.Scatter(x=data.index, y=data['Close'], mode='lines', name='Close'))
-fig.add_trace(go.Scatter(
+# 📈 Plotly 차트 시각화 (날짜 하나로 통합)
+fig_price = go.Figure()
+fig_price.add_trace(go.Scatter(x=data.index, y=data['Close'], mode='lines', name='종가'))
+fig_price.add_trace(go.Scatter(
     x=data.iloc[bullish_points].index,
     y=data['Close'].iloc[bullish_points],
     mode='markers',
     name='🟢 매수 다이버전스',
     marker=dict(color='green', size=10)
 ))
-fig.add_trace(go.Scatter(
+fig_price.add_trace(go.Scatter(
     x=data.iloc[bearish_points].index,
     y=data['Close'].iloc[bearish_points],
     mode='markers',
@@ -85,25 +90,21 @@ fig.add_trace(go.Scatter(
     marker=dict(color='red', size=10)
 ))
 
-# RSI (보조축)
-fig.add_trace(go.Scatter(
-    x=data.index, y=data['RSI'],
-    mode='lines', name='RSI', yaxis='y2', line=dict(color='purple')
-))
-fig.add_shape(type="line", x0=data.index[0], x1=data.index[-1], y0=30, y1=30,
-              line=dict(color="gray", dash="dot"), yref='y2')
-fig.add_shape(type="line", x0=data.index[0], x1=data.index[-1], y0=70, y1=70,
-              line=dict(color="gray", dash="dot"), yref='y2')
+# 일목균형표 표시
+if 'tenkan_sen' in data.columns and 'kijun_sen' in data.columns:
+    fig_price.add_trace(go.Scatter(x=data.index, y=data['tenkan_sen'], mode='lines', name='전환선'))
+    fig_price.add_trace(go.Scatter(x=data.index, y=data['kijun_sen'], mode='lines', name='기준선'))
 
-# 보조 y축 설정
-fig.update_layout(
-    height=700,
-    xaxis=dict(domain=[0, 1]),
-    yaxis=dict(title="Price", side="left"),
-    yaxis2=dict(title="RSI", side="right", overlaying="y", position=1.0),
-    hovermode="x unified",
-    title=f"{symbol} RSI 다이버전스 분석",
-    legend=dict(orientation="h")
-)
+fig_price.update_layout(title=f"{symbol} 가격 및 다이버전스 + 일목균형표", xaxis_title="날짜", yaxis_title="가격")
 
-st.plotly_chart(fig, use_container_width=True)
+fig_rsi = go.Figure()
+fig_rsi.add_trace(go.Scatter(x=data.index, y=data['RSI'], mode='lines', name='RSI', line=dict(color='purple')))
+fig_rsi.add_shape(type="line", x0=data.index[0], x1=data.index[-1], y0=30, y1=30,
+                  line=dict(color="gray", dash="dot"))
+fig_rsi.add_shape(type="line", x0=data.index[0], x1=data.index[-1], y0=70, y1=70,
+                  line=dict(color="gray", dash="dot"))
+fig_rsi.update_layout(title="RSI 지표", xaxis_title="날짜", yaxis_title="RSI")
+
+# ✅ 시각화 출력
+st.plotly_chart(fig_price, use_container_width=True)
+st.plotly_chart(fig_rsi, use_container_width=True)
