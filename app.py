@@ -38,13 +38,14 @@ except Exception as e:
     st.error(f"RSI 계산 중 오류 발생: {e}")
     st.stop()
 
-# ✅ 일목균형표 추가
+# ✅ 볼린저 밴드 추가
 try:
-    ichimoku = ta.trend.IchimokuIndicator(high=data['High'], low=data['Low'], window1=9, window2=26, window3=52)
-    data['tenkan_sen'] = ichimoku.ichimoku_conversion_line()
-    data['kijun_sen'] = ichimoku.ichimoku_base_line()
+    bb = ta.volatility.BollingerBands(close=close, window=20, window_dev=2)
+    data['bb_bbm'] = bb.bollinger_mavg()
+    data['bb_bbh'] = bb.bollinger_hband()
+    data['bb_bbl'] = bb.bollinger_lband()
 except Exception as e:
-    st.warning(f"일목균형표 계산 오류: {e}")
+    st.warning(f"볼린저 밴드 계산 오류: {e}")
 
 # 🧠 다이버전스 탐지 함수
 def find_bullish_divergence(df):
@@ -90,12 +91,13 @@ fig_price.add_trace(go.Scatter(
     marker=dict(color='red', size=10)
 ))
 
-# 일목균형표 표시
-if 'tenkan_sen' in data.columns and 'kijun_sen' in data.columns:
-    fig_price.add_trace(go.Scatter(x=data.index, y=data['tenkan_sen'], mode='lines', name='전환선'))
-    fig_price.add_trace(go.Scatter(x=data.index, y=data['kijun_sen'], mode='lines', name='기준선'))
+# 볼린저 밴드 표시
+if 'bb_bbm' in data.columns:
+    fig_price.add_trace(go.Scatter(x=data.index, y=data['bb_bbm'], mode='lines', name='볼린저 중간'))
+    fig_price.add_trace(go.Scatter(x=data.index, y=data['bb_bbh'], mode='lines', name='볼린저 상단'))
+    fig_price.add_trace(go.Scatter(x=data.index, y=data['bb_bbl'], mode='lines', name='볼린저 하단'))
 
-fig_price.update_layout(title=f"{symbol} 가격 및 다이버전스 + 일목균형표", xaxis_title="날짜", yaxis_title="가격")
+fig_price.update_layout(title=f"{symbol} 가격 및 다이버전스 + 볼린저 밴드", xaxis_title="날짜", yaxis_title="가격")
 
 fig_rsi = go.Figure()
 fig_rsi.add_trace(go.Scatter(x=data.index, y=data['RSI'], mode='lines', name='RSI', line=dict(color='purple')))
@@ -108,3 +110,4 @@ fig_rsi.update_layout(title="RSI 지표", xaxis_title="날짜", yaxis_title="RSI
 # ✅ 시각화 출력
 st.plotly_chart(fig_price, use_container_width=True)
 st.plotly_chart(fig_rsi, use_container_width=True)
+
