@@ -111,3 +111,4 @@ fig_rsi.update_layout(title="RSI 지표", xaxis_title="날짜", yaxis_title="RSI
 st.plotly_chart(fig_price, use_container_width=True)
 st.plotly_chart(fig_rsi, use_container_width=True)
 
+
