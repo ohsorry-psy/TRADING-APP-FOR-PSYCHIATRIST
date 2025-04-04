@@ -1,3 +1,4 @@
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -23,7 +24,7 @@ if 'Close' not in data.columns:
     st.error("❌ 종가(Close) 데이터가 없습니다.")
     st.stop()
 
-close = data['Close']
+close = data['Close'].squeeze()
 if close.empty:
     st.error("❌ 종가 데이터가 비어있습니다.")
     st.stop()
